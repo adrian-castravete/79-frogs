@@ -4,6 +4,8 @@ local S = fkge.scene
 local C = fkge.componentSystem
 local E = fkge.entity
 
+lg.setDefaultFilter("nearest", "nearest")
+
 C{
 	name = "2d",
 	x = 0,
@@ -25,6 +27,13 @@ C{
 		lg.pop()
 	end,
 	draw = function (e)
+		if e.image then
+			if e.quad then
+				lg.draw(e.image, e.quad, 0, 0)
+			else
+				lg.draw(e.image, 0, 0)
+			end
+		end
 	end,
 	pos = function (e, x, y)
 		e.attr{
@@ -34,27 +43,46 @@ C{
 	end,
 }
 
+local lillyImg = lg.newImage("lilly.png")
 C{
 	name = "lilly",
 	parents = "2d",
 	w = 16,
 	h = 16,
+	image = lillyImg,
+	quad = lg.newQuad(0, 0, 16, 16, lillyImg:getDimensions()),
 	init = function (e, x, y)
 		e.pos(e, x, y)
-		e.s = math.random() + 1
-	end,
-	draw = function (e)
-		lg.setColor{0.5, 0.8, 0}
-		lg.arc("fill", 8, 8, 8, 0, 4.72)
+		e.s = math.random() * 2 + 1
+		e.av = (math.random() - 0.5) / 20
 	end,
 	system = function (e)
-		e.s = math.random() + 1
-		e.r = e.r + 0.1
+		e.r = e.r + e.av
 	end,
 }
 
-S("game", function()
-	E("lilly", 64, 48)
+C{
+	name = "input",
+	system = function (e, msg)
+		for _, key in ipairs(msg.keyreleased or {}) do
+			if key == "escape" then
+				love.event.quit()
+			end
+		end
+	end,
+}
+
+C{
+	name = "froggy",
+	parents = "input",
+}
+
+S("game", function ()
+	math.randomseed(os.time())
+	E("froggy")
+	for i=1, 32 do
+		E("lilly", math.random() * 360, math.random() * 240)
+	end
 end)
 
 fkge.game{
