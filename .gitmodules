@@ -1,0 +1,3 @@
+[submodule "fkge"]
+	path = fkge
+	url = git@github.com:adrian-castravete/fkge-love.git
