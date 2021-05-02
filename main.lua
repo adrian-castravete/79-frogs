@@ -51,10 +51,13 @@ C{
 	h = 16,
 	image = lillyImg,
 	quad = lg.newQuad(0, 0, 16, 16, lillyImg:getDimensions()),
-	init = function (e, x, y)
+	init = function (e, x, y, s)
 		e.pos(e, x, y)
-		e.s = math.random() * 2 + 1
-		e.av = (math.random() - 0.5) / 20
+		e.s = s or math.random() * 2 + 1
+		e.av = math.random() / 20 + 0.01
+		if math.random() < 0.5 then
+			e.av = -e.av
+		end
 	end,
 	system = function (e)
 		e.r = e.r + e.av
@@ -64,28 +67,73 @@ C{
 C{
 	name = "input",
 	system = function (e, msg)
-		for _, key in ipairs(msg.keyreleased or {}) do
+		for _, key in ipairs(msg.keypressed or {}) do
 			if key == "escape" then
 				love.event.quit()
+			else
+				e.jump = true
 			end
+		end
+		if msg.mousepressed and #msg.mousepressed > 0 or 
+		   msg.joystickpressed and #msg.joystickpressed > 0 then
+			e.jump = true
 		end
 	end,
 }
 
+local froggyImg = lg.newImage("froggy.png")
+local fw, fh = froggyImg:getDimensions()
+local froggyQuads = {
+	ready = lg.newQuad(0, 0, 16, 16, fw, fh),
+	jump = lg.newQuad(16, 0, 16, 32, fw, fh),
+}
 C{
 	name = "froggy",
-	parents = "input",
+	parents = "input, 2d",
+	w = 16,
+	h = 16,
+	image = froggyImg,
+	quad = froggyQuads.ready,
+	init = function (e)
+		e.setLilly(e, fkge.find("lilly", function (e) return e end))
+	end,
+	setLilly = function (e, l)
+		e.lilly = l
+		e.x = l.x
+		e.y = l.y
+		e.rd = l.r - e.r
+	end,
+	system = function (e)
+		e.r = e.lilly.r - e.rd
+		if e.jump then
+			e.jump = false
+			
+		end
+	end,
 }
 
 S("game", function ()
 	math.randomseed(os.time())
-	E("froggy")
 	for i=1, 32 do
-		E("lilly", math.random() * 360, math.random() * 240)
+		local f, x, y, s, n = true, 0, 0, 1, 0
+		while f and n < 1000 do
+			x, y, s = math.random() * 360, math.random() * 240, math.random() * 2 + 1
+			f = fkge.find("lilly", function (e)
+				local dx, dy = math.abs(e.x - x), math.abs(e.y - y)
+				if dx < 48 and dy < 48 and math.sqrt(dx*dx + dy*dy) < (e.s + s) * 16 then
+					return true
+				end
+			end)
+			n = n + 1
+		end
+		if n < 1000 then
+			E("lilly", x, y, s)
+		end
 	end
+	E("froggy")
 end)
 
 fkge.game{
-	background = {1/3, 2/3, 1}
+	background = {2/15, 4/15, 8/15}
 }
 S"game"
