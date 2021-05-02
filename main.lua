@@ -74,7 +74,7 @@ C{
 				e.jump = true
 			end
 		end
-		if msg.mousepressed and #msg.mousepressed > 0 or 
+		if msg.mousepressed and #msg.mousepressed > 0 or
 		   msg.joystickpressed and #msg.joystickpressed > 0 then
 			e.jump = true
 		end
@@ -103,11 +103,14 @@ C{
 		e.y = l.y
 		e.rd = l.r - e.r
 	end,
+	doJump = function (e)
+		e.jump = false
+		e.quad = froggyQuads.jump
+	end,
 	system = function (e)
 		e.r = e.lilly.r - e.rd
 		if e.jump then
-			e.jump = false
-			
+			e.doJump(e)
 		end
 	end,
 }
