@@ -1,4 +1,5 @@
 local lg = love.graphics
+local lp = love.physics
 local fkge = require"fkge"
 local S = fkge.scene
 local C = fkge.componentSystem
@@ -6,7 +7,7 @@ local E = fkge.entity
 local A = fkge.anim
 local L = fkge.lerp
 
-WIDTH, HEIGHT = 360, 240
+WIDTH, HEIGHT = 240, 160
 
 lg.setDefaultFilter("nearest", "nearest")
 
@@ -47,10 +48,37 @@ C{
 	end,
 }
 
+local LillyBody = {
+	name = "collision",
+}
+
+function LillyBody:init()
+	local b = lp.newBody(fkge.find("world").world, self.x, self.y, "dynamic")
+	local s = lp.newCircleShape(8 * self.s)
+	local f = lp.newFixture(b, s, self.s)
+	b:setPosition(self.x, self.y)
+	b:setLinearVelocity(0, 0)
+	f:setRestitution(0.4)
+	self.body = b
+	self.shape = s
+	self.fixture = f
+end
+
+function LillyBody:system(msg, dt)
+	self.x, self.y = self.body:getPosition()
+end
+
+function LillyBody:setSpeed(a, v)
+	local vx = math.sin(a) * v * 1000
+	local vy = -math.cos(a) * v * 1000
+	self.body:applyForce(vx, vy)
+end
+C(LillyBody)
+
 local lillyImg = lg.newImage("lilly.png")
 C{
 	name = "lilly",
-	parents = "2d",
+	parents = "2d, collision",
 	w = 16,
 	h = 16,
 	image = lillyImg,
@@ -63,7 +91,7 @@ C{
 			e.av = -e.av
 		end
 	end,
-	system = function (e)
+	system = function (e, msg, dt)
 		e.r = e.r + e.av
 	end,
 }
@@ -130,12 +158,12 @@ C{
 	doJump = function (e)
 		e.jump = false
 		e.setState(e, "jump")
-		for i=1, 10 do
-			local d = 25 + i*5
+		for i=1, 12 do
+			local d = 15 + i*5
 			local l = e.lillyAt(e, e.x + math.sin(e.r)*d, e.y - math.cos(e.r)*d)
-			if l then
-				e.lilly.destroy = true
-				e.jumpNormal(e, l, d)
+			if l and l ~= e.lilly then
+				--e.lilly.destroy = true
+				e.jumpNormal(e, l, d / 60)
 				return
 			end
 		end
@@ -151,7 +179,8 @@ C{
 	end,
 	jumpNormal = function (e, l, d, cb)
 		local sx, sy = e.x, e.y
-		A(d / 60, function (v)
+		e.lilly.setSpeed(e.lilly, math.pi + e.r, d)
+		A(d, function (v)
 			e.s = math.sin(v * math.pi) + 1
 			if l then
 				e.x = L(sx, l.x, v)
@@ -168,7 +197,7 @@ C{
 		end)
 	end,
 	jumpWater = function (e)
-		e.jumpNormal(e, nil, 60, function ()
+		e.jumpNormal(e, nil, 1, function ()
 			e.setState(e, "water")
 			A(3, function (v)
 				if v < 0.3 then
@@ -185,24 +214,50 @@ C{
 		end)
 	end,
 	system = function (e)
-		if e.jump then
-			e.doJump(e)
-		end
 		if e.state == "ready" then
+			if e.jump then
+				e.doJump(e)
+			end
 			e.r = e.lilly.r - e.rd
 		end
 	end,
 }
 
+local World = {
+	name = "world",
+}
+
+function World:init()
+	self.world = lp.newWorld()
+	self:createBound(0, -24, WIDTH, 24)
+	self:createBound(0, HEIGHT, WIDTH, 24)
+	self:createBound(-24, -24, 24, HEIGHT+48)
+	self:createBound(WIDTH, -24, 24, HEIGHT+48)
+end
+
+function World:createBound(x, y, w, h)
+	local b = lp.newBody(fkge.find("world").world, x, y)
+	local s = lp.newRectangleShape(w, h)
+	lp.newFixture(b, s)
+end
+
+function World:system(msg, dt)
+	self.world:update(dt)
+end
+C(World)
+
 S("game", function ()
 	math.randomseed(os.time())
+	E"world"
 	for i=1, 32 do
 		local f, x, y, s, n = true, 0, 0, 1, 0
 		while f and n < 1000 do
-			x, y, s = math.random() * WIDTH, math.random() * HEIGHT, math.random() * 2 + 1
+			s = math.random() * 2 + 1
+			local t = s * 8
+			x, y = math.random() * (WIDTH - 2*t) + t, math.random() * (HEIGHT - 2*t) + t
 			f = fkge.find("lilly", function (e)
 				local dx, dy = math.abs(e.x - x), math.abs(e.y - y)
-				if dx < 48 and dy < 48 and math.sqrt(dx*dx + dy*dy) < (e.s + s) * 16 then
+				if dx < 48 and dy < 48 and math.sqrt(dx*dx + dy*dy) < (e.s + s) * 8 then
 					return true
 				end
 			end)
