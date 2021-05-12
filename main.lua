@@ -315,7 +315,7 @@ function Score:system(msg)
 end
 
 function Score:draw()
-	local o = love.window.getDisplayOrientation()
+	local o = love.window.getDisplayOrientation and love.window.getDisplayOrientation()
 	o = (o == "portrait" or o == "portraitflipped")
 	local v = self.value
 	local x = 0
@@ -362,7 +362,7 @@ end
 function World:system(msg, dt)
 	if fkge.count("flower") < 3 then
 		fkge.each("lilly", function (e)
-			if math.random() < 0.1 and 
+			if math.random() < 0.1 and
 			   not fkge.find("froggy", function (o)
 							return o.lilly == e
 						end) then
